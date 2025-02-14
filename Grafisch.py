@@ -30,7 +30,7 @@ t = 0
 
 l = 300 # cm
 SIl = l/1000 # m
-alpha = 45
+alpha = 100
 s = (alpha / 360) * 2 * math.pi * SIl # m
 #alpha = (s * 360) / ( 2 * math.pi * SIl)
 
@@ -40,11 +40,11 @@ SIr = r / 1000  # m
 w = r
 w = int(w)
 
-v = 0 # m/s
+v = 5 # m/s
 F = 0 # N
 
 pl = 1.225 # kg/m**3
-p = Material.christkugel # kg/m**3
+p = Material.eisen # kg/m**3
 Cw = 0.45
 A = 0.5 * math.pi * SIr ** 2 # m**2
 
@@ -121,7 +121,7 @@ def sim(frames):
 
     return
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
 
 ani = animation.FuncAnimation(fig, sim, frames=1000, interval=dt * 1000, blit=False)
 plt.show()
