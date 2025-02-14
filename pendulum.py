@@ -1,104 +1,102 @@
-from time import sleep
 import math
-import pygame
+from symtable import Symbol
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from pygame import Vector2
-
-def dichte():
-    Aerogel = 3
+import pygame
 
 
-pygame.init()
-screen = pygame.display.set_mode((1280, 720))
-clock = pygame.time.Clock()
-running = True
+width = 1280
+height = 720
+
+last = 0
+
+r = 10
+
+t = 0
 
 time_data = []
 force_data = []
 displacement_data = []
 
+pygame.init()
+screen = pygame.display.set_mode((width, height))
+clock = pygame.time.Clock()
+running = True
+
 dt = 0.01
-t = 0
+G = 6.67430 * 10 ** -11
 
+m = 1000000000000000
+x = -20
+x2 = 20
+v = 0
+v2 = 0
+F = 0
+F2 = 0
+d = x2 - x
+d2 = x - x2
 
-l = 300 # cm
-SIl = l/100 # m
-s = 19# (alpha / 360) * 2 * math.pi * l * 0.01  # cm
-SIs = s/100
-alpha = (SIs * 360) / ( 2 * math.pi * SIl)
+def distance(x1, y1, x2_, y2_):
+    return math.sqrt(((x1 - x2_) * (x1 - x2_)) + ((y1 - y2_) * (y1 - y2_)))
 
-v = 0 # m/s
-F = 0 # N
+def touch(x, y, x2, y2):
+    return (r * 2)>= distance(x, y, x2, y2)
 
-r = 30 # cm
-SIr = r / 100  # m
-w = r
+def momentum():
+    global v, v2
+    asd = v
+    v = v2
+    v2 = asd
 
-p = 0.03 # kg/m**3
-m = p * 4/3 * math.pi * SIr ** 3 # kg
-pl = 1.225 # kg/m**3
-g = 9.81 # m/s**2
-Fg = m * g # N
-print(m)
-
-Cw = 0.45
-A = 0.5 * math.pi * SIr ** 2 # m**2
-
-
-x = 0
-y = 0
-
-w = int(w)
-s = float(s)
 
 def force():
-    global F
-    F = math.sin(alpha) * Fg  # Use radians for math.sin
+    global F, F2
+    F = (d/abs(d)) * G * m * m / d ** 2
+    F2 = (d2/abs(d2)) * G * m * m / d2 ** 2
 
 
 def velocity():
-
-    global dt, v, F, m
-    if v > 0:
-        v = v + (F - 0.5 * A * pl * Cw * v ** 2) / m * dt
-    elif v < 0:
-        v = v + (F + 0.5 * A * pl * Cw * v ** 2) / m * dt
+    global v, v2
+    if touch(x, 0, x2, 0):
+        momentum()
     else:
-        v = v + F / m * dt
+        v += F/m * dt
+        v2 += F2 / m * dt
 
-def displacement():
-    global SIs, alpha
-    SIs = SIs + v * dt
-    alpha = (SIs * 360) / (2 * math.pi * SIl)
+def position():
+    global d, x, x2, last, d2
+    x += v * dt
+    x2 += v2 * dt
+    d = x2 - x
+    d2 = x - x2
 
-def sim(frames):
-    global x, y, t
+
+
+def simulation(frame):
+    global t
     t += dt
-
-    force()
-    velocity()
-    displacement()
-
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             quit(0)
 
-    # fill the screen with a color to wipe away anything from last frame
+    force()
+    velocity()
+    position()
+
+
     screen.fill("white")
 
-    x = 640 + math.sin(alpha) * l
-    y = 300 - math.cos(alpha) * l
+    pygame.draw.circle(screen, (0, 0, 0), [int(640 + x), 360], r)
+    pygame.draw.circle(screen, (0, 0, 0), [int(640 + x2), 360], r)
 
-    pygame.draw.circle(screen, (0, 0, 0), [x, y], r, w)
-    pygame.draw.line(screen, (98, 71, 51), [640, 300], [x, y], 5)
+    clock.tick(100)
 
     pygame.display.flip()
 
     time_data.append(t)
-    force_data.append(F)
-    displacement_data.append(SIs)
+    force_data.append(v)
+    displacement_data.append(x)
     ax1.clear()
     ax1.plot(time_data, force_data, color='blue')
     ax1.set_title("Force vs Time")
@@ -116,7 +114,5 @@ def sim(frames):
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
 
-ani = animation.FuncAnimation(fig, sim, frames=1000, interval=dt * 1000, blit=False)
+ani = animation.FuncAnimation(fig, simulation, frames=1000, interval=dt * 1000, blit=False)
 plt.show()
-
-pygame.quit()

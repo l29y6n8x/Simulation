@@ -70,8 +70,10 @@ def setup(particles, spacing, mass):
 def force():
     global ds
     for i in range(len(Fx)):
+        distances = []
         for index in range(len(Fx)-1):
             dx[index] = px[index] - px[index + 1]
+            distances.append(distance(px[i], py[i], px[index + 1], py[index + 1]))
 
         for index in range(len(Fx)-1):
             dy[index] = py[index] - py[index + 1]
@@ -79,7 +81,7 @@ def force():
         ds = math.sqrt(dx[i] ** 2 + dy[i] ** 2)
         Fx[i] = G * (m[i] * m[i + 1]) / ds ** 2
 
-setup(10, 100, 100)
+setup(2, 100, 100)
 
 while running:
     for event in pygame.event.get():
@@ -96,7 +98,7 @@ while running:
                 py.clear()
                 dx.clear()
                 dy.clear()
-                setup(10, 100, 100)
+                setup(2, 100, 100)
 
     screen.fill("white")
 

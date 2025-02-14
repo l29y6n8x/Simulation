@@ -63,7 +63,7 @@ while True:#def simulation(frame):
     for i2 in range(len(p_m)):
         pygame.draw.circle(screen, (0, 0, 0), [x * (i2 + 1), 360 - p_d[i2]], r, r)
         if (i2 + 2) <= len(p_m):
-            pygame.draw.line(screen, (0, 100, 255), [x * (i2 + 1), 360 - p_d[i2]], [x * (i2 + 2), 360 - p_d[i2+1]], int(r / 2))
+            pygame.draw.line(screen, (0, 100, 255), [x * (i2 + 1), 360 - p_d[i2]], [x * (i2 + 2), 360 - p_d[i2 + 1]], int(r / 2))
 
     clock.tick(100)
 
