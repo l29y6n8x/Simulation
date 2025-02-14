@@ -85,11 +85,24 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                m.clear()
+                vx.clear()
+                vy.clear()
+                Fx.clear()
+                Fy.clear()
+                px.clear()
+                py.clear()
+                dx.clear()
+                dy.clear()
+                setup(10, 100, 100)
 
     screen.fill("white")
 
     for ip in range(len(px)):
         pygame.draw.circle(screen, (0, 0, 0), [px[ip], py[ip]], r, r)
+        pygame.draw.circle(screen, (0, 0, 0), [px[ip], py[ip]], 100, r)
 
     clock.tick(100)
     pygame.display.flip()
