@@ -1,8 +1,7 @@
-import math
 import random
 import pygame
 
-dt = 0.01
+dt = 0.001
 G = 6.67430 * 10 ** -11
 
 width = 1280
@@ -13,24 +12,80 @@ screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 running = True
 
-m = []
-vx = []
-vy = []
-Fx = []
-Fy = []
-x = []
-y = []
-dx = []
-dy = []
-d = []
+global_amount = 0
+global_spacing = 0
+global_mass = 0
 
-r = 5
+particles = []
 
-def last(array, index):
-    return index == len(array)-1
+class Particle:
+    def __init__(self, x, y, mass, radius=10):
+        global particles
+        self.p = pygame.math.Vector2(x, y)
+        self.F = pygame.math.Vector2(0, 0)
+        self.v = pygame.math.Vector2(0, 0)
+        self.m = mass
+        self.r = radius
+        particles.append(self)
+        self.draw()
 
-def distance(x, y, x2, y2):
-    return math.sqrt(((x - x2) ** 2) + ((y - y2) ** 2))
+    def force(self):
+        self.F = pygame.math.Vector2(0, 0)
+        for particle in particles:
+            if particle != self:
+                displacement = particle.p - self.p
+                distance = displacement.length()
+                if distance == 0:
+                    continue
+                force_magnitude = G * self.m * particle.m / (distance ** 2)
+                self.F += displacement.normalize() * force_magnitude
+
+
+
+    def velocity(self):
+
+        if self.p.x - self.r <= 0 or self.p.x + self.r >= width:
+            self.v.x *= -1
+        if self.p.y - self.r <= 0 or self.p.y + self.r >= height:
+            self.v.y *= -1
+
+        self.v += self.F * (1 / self.m) * dt
+
+    def position(self):
+        self.p += self.v * dt
+
+    def draw(self):
+        pygame.draw.circle(screen, (0, 0, 0), self.p, self.r, self.r)
+
+    def distance(self, other):
+        return self.p.distance_to(other)
+
+    def collide(self, other):
+        impulse = self.v * self.m
+        impulse2 = other.v * other.m
+
+        self.v = impulse2 / self.m
+        other.v = impulse / other.m
+
+
+def update():
+    for particle in particles:
+        particle.force()
+
+    for i in range(len(particles)):
+        for j in range(i + 1, len(particles)):
+            p1 = particles[i]
+            p2 = particles[j]
+
+            if (p1.r + p2.r) >= p1.p.distance_to(p2.p):
+                p1.collide(p2)
+                print(True)
+
+    for particle in particles:
+        particle.velocity()
+        particle.position()
+        particle.draw()
+
 
 def random_():
     h = random.randrange(0, height)
@@ -38,15 +93,13 @@ def random_():
     return w, h
 
 def is_near(spacing, x3, y3):
-    for i in range(len(x)):
-        x2 = x[i]
-        y2 = y[i]
-        if distance(x3, y3, x2 ,y2) < spacing:
+    for particle in particles:
+        if particle.distance(pygame.math.Vector2(x3, y3)) < spacing:
             return True
     return False
 
 def new_random_location(spacing):
-    if len(x) == 0:
+    if len(particles) == 0:
         return random_()
     else:
         x2, y2 = random_()
@@ -55,104 +108,19 @@ def new_random_location(spacing):
         else:
             return new_random_location(spacing)
 
-def setup(particles, spacing, mass):
-    for index in range(particles):
-        xn, yn = new_random_location(spacing)
-        m.append(mass)
-        vx.append(0)
-        vy.append(0)
-        Fx.append(0)
-        Fy.append(0)
-        x.append(xn)
-        y.append(yn)
-        dx.append(0)
-        dy.append(0)
-        d.append(0)
-    m[0] = 100000000000
-    vx[0] = 0
-    vy[0] = 0
-    Fx[0] = 0
-    Fy[0] = 0
-    x[0] = 640
-    y[0] = 360
-    position()
+def setup(amount, spacing, mass):
+    global global_amount, global_mass, global_spacing
+    global_mass = mass
+    global_spacing = spacing
+    global_amount = amount
+    for index in range(amount):
+        x, y = new_random_location(spacing)
+        Particle(x, y, mass)
 
+def reset():
+    setup(global_amount, global_spacing, global_mass)
 
-def touch(x, y, x2, y2):
-    return (r * 2)>= distance(x, y, x2, y2)
-
-def collide(index, index2):
-    global vx, vy
-
-    mvx = vx[index]
-    vx[index] = vx[index2]
-    vx[index2] = mvx
-
-    my = vy[index]
-    vy[index] = vy[index2]
-    vy[index2] = my
-
-
-def force():
-    global Fx, Fy
-    #print(Fx)
-    for i in range(len(m)):
-        for index in range(len(dx[0])):
-            angle = math.asin(dy[i][index]/d[i][index])
-            Fx[i] += math.cos(angle) * (dx[i][index]/abs(dx[i][index])) * G * m[i] * m[i] / d[i][index] ** 2 #  (dx[i][index]/abs(dx[i][index])) *
-
-            Fy[i] += math.sin(angle) * G * m[i] * m[i] / d[i][index] ** 2 #  * (dy[i][index]/abs(dy[i][index]))
-
-def velocity():
-    global vx, vy
-    for i in range(len(m)):
-        succ = True
-        for i2 in range(len(m)):
-            if succ:
-                if i != i2:
-                    if touch(x[i], y[i], x[i2], y[i2]):
-                        succ = False
-                        collide(i, i2)
-                        break
-        if succ:
-            vx[i] += Fx[i]/m[i] * dt
-            vy[i] += Fy[i]/m[i] * dt
-
-def position():
-    global dx, x, d, dy, y
-    for i in range(len(m)):
-        x[i] += vx[i] * dt
-        y[i] += vy[i] * dt
-    for i in range(len(m)):
-        buildx = []
-        for i2 in range(len(m)):
-            dis = x[i2] - x[i]
-            if dis != 0:
-                buildx.append(dis)
-
-        buildy = []
-        for i2 in range(len(m)):
-            dis = y[i2] - y[i]
-            if dis != 0:
-                buildy.append(dis)
-
-        buildd = []
-        for i2 in range(len(m)):
-            dis = distance(x[i], y[i], x[i2], y[i2])
-            if dis != 0:
-                buildd.append(dis)
-
-        dx[i] = buildx
-        dy[i] = buildy
-        d[i] = buildd
-    #dx[0] = x[1] - x[0]
-    #dy[0] = y[1] - y[0]
-    #dx[1] = x[0] - x[1]
-    #dy[1] = y[0] - y[1]
-    #d[0] = distance(x[0], y[0], x[1], y[1])
-    #d[1] = distance(x[0], y[0], x[1], y[1])
-
-setup(10, 100, 10000000000000)
+setup(60, 100, 1e16)
 
 while running:
     for event in pygame.event.get():
@@ -160,26 +128,12 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                m.clear()
-                vx.clear()
-                vy.clear()
-                Fx.clear()
-                Fy.clear()
-                x.clear()
-                y.clear()
-                dx.clear()
-                dy.clear()
-                setup(10, 100, 10000000000000)
-
-    force()
-    velocity()
-    position()
+                particles.clear()
+                reset()
 
     screen.fill("white")
 
-    for ip in range(len(m)):
-        pygame.draw.circle(screen, (0, 0, 0), [x[ip], y[ip]], r, r)
-        #pygame.draw.circle(screen, (0, 0, 0), [x[ip], y[ip]], 100, r)
+    update()
 
     clock.tick(50)
     pygame.display.flip()
