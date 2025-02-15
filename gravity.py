@@ -30,7 +30,7 @@ def last(array, index):
     return index == len(array)-1
 
 def distance(x, y, x2, y2):
-    return math.sqrt(((x - x2) * (x - x2)) + ((y - y2) * (y - y2)))
+    return math.sqrt(((x - x2) ** 2) + ((y - y2) ** 2))
 
 def random_():
     h = random.randrange(0, height)
@@ -68,13 +68,14 @@ def setup(particles, spacing, mass):
         dx.append(0)
         dy.append(0)
         d.append(0)
-
-    dx[0] = x[1] - x[0]
-    dy[0] = y[1] - y[0]
-    dx[1] = x[0] - x[1]
-    dy[1] = y[0] - y[1]
-    d[0] = distance(x[0], y[0], x[1], y[1])
-    d[1] = distance(x[0], y[0], x[1], y[1])
+    m[0] = 100000000000
+    vx[0] = 0
+    vy[0] = 0
+    Fx[0] = 0
+    Fy[0] = 0
+    x[0] = 640
+    y[0] = 360
+    position()
 
 
 def touch(x, y, x2, y2):
@@ -94,20 +95,26 @@ def collide(index, index2):
 
 def force():
     global Fx, Fy
-    print(Fy)
+    #print(Fx)
     for i in range(len(m)):
-        angle = math.asin(dy[i]/d[i])
-        Fx[i] = math.cos(angle) * (dx[i]/abs(dx[i])) * G * m[i] * m[i] / d[i] ** 2
+        for index in range(len(dx[0])):
+            angle = math.asin(dy[i][index]/d[i][index])
+            Fx[i] += math.cos(angle) * (dx[i][index]/abs(dx[i][index])) * G * m[i] * m[i] / d[i][index] ** 2 #  (dx[i][index]/abs(dx[i][index])) *
 
-        Fy[i] = math.sin(angle) * G * m[i] * m[i] / d[i] ** 2
+            Fy[i] += math.sin(angle) * G * m[i] * m[i] / d[i][index] ** 2 #  * (dy[i][index]/abs(dy[i][index]))
 
 def velocity():
     global vx, vy
     for i in range(len(m)):
-        if touch(x[0], y[0], x[1], y[1]):
-            if not last(m, i):
-                collide(i, i+1)
-        else:
+        succ = True
+        for i2 in range(len(m)):
+            if succ:
+                if i != i2:
+                    if touch(x[i], y[i], x[i2], y[i2]):
+                        succ = False
+                        collide(i, i2)
+                        break
+        if succ:
             vx[i] += Fx[i]/m[i] * dt
             vy[i] += Fy[i]/m[i] * dt
 
@@ -116,19 +123,36 @@ def position():
     for i in range(len(m)):
         x[i] += vx[i] * dt
         y[i] += vy[i] * dt
-        #buildx = []
-        #for i2 in range(len(m)):
-        #    buildx.append(distance())
-        #    dx[i] = x[i+1] - x[i]
-        #    dy[i] = y[i+1] - y[i]
-    dx[0] = x[1] - x[0]
-    dy[0] = y[1] - y[0]
-    dx[1] = x[0] - x[1]
-    dy[1] = y[0] - y[1]
-    d[0] = distance(x[0], y[0], x[1], y[1])
-    d[1] = distance(x[0], y[0], x[1], y[1])
+    for i in range(len(m)):
+        buildx = []
+        for i2 in range(len(m)):
+            dis = x[i2] - x[i]
+            if dis != 0:
+                buildx.append(dis)
 
-setup(2, 100, 1000000000000000)
+        buildy = []
+        for i2 in range(len(m)):
+            dis = y[i2] - y[i]
+            if dis != 0:
+                buildy.append(dis)
+
+        buildd = []
+        for i2 in range(len(m)):
+            dis = distance(x[i], y[i], x[i2], y[i2])
+            if dis != 0:
+                buildd.append(dis)
+
+        dx[i] = buildx
+        dy[i] = buildy
+        d[i] = buildd
+    #dx[0] = x[1] - x[0]
+    #dy[0] = y[1] - y[0]
+    #dx[1] = x[0] - x[1]
+    #dy[1] = y[0] - y[1]
+    #d[0] = distance(x[0], y[0], x[1], y[1])
+    #d[1] = distance(x[0], y[0], x[1], y[1])
+
+setup(10, 100, 10000000000000)
 
 while running:
     for event in pygame.event.get():
@@ -145,7 +169,7 @@ while running:
                 y.clear()
                 dx.clear()
                 dy.clear()
-                setup(2, 100, 1000000000000000)
+                setup(10, 100, 10000000000000)
 
     force()
     velocity()
@@ -157,7 +181,7 @@ while running:
         pygame.draw.circle(screen, (0, 0, 0), [x[ip], y[ip]], r, r)
         #pygame.draw.circle(screen, (0, 0, 0), [x[ip], y[ip]], 100, r)
 
-    #clock.tick(144)
+    clock.tick(50)
     pygame.display.flip()
 
 pygame.quit()
