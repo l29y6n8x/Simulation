@@ -17,7 +17,7 @@ while True:
 
             data = {
                 "content": variable,
-                "name": "l29y6n8x"
+                "username": "l29y6n8x"
             }
 
             response = requests.post(WEBHOOK_URL, json=data)

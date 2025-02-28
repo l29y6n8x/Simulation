@@ -2,7 +2,10 @@ import random
 import pygame
 
 dt = 0.001
+t = 0
 G = 6.67430 * 10 ** -11
+
+elastic = 0.95
 
 width = 1280
 height = 720
@@ -45,13 +48,21 @@ class Particle:
     def velocity(self):
 
         if self.p.x - self.r <= 0 or self.p.x + self.r >= width:
-            self.v.x *= -1
+            self.v.x *= -elastic
         if self.p.y - self.r <= 0 or self.p.y + self.r >= height:
-            self.v.y *= -1
+            self.v.y *= -elastic
+
+
 
         self.v += self.F * (1 / self.m) * dt
 
     def position(self):
+        for particle in particles:
+            if particle != self:
+                if (self.r + particle.r) >= self.p.distance_to(particle.p):
+                    self.collide(particle)
+                    print(True)
+
         self.p += self.v * dt
 
     def draw(self):
@@ -64,22 +75,21 @@ class Particle:
         impulse = self.v * self.m
         impulse2 = other.v * other.m
 
-        self.v = impulse2 / self.m
-        other.v = impulse / other.m
-
+        self.v = elastic * impulse2 / self.m
+        other.v = elastic * impulse / other.m
 
 def update():
     for particle in particles:
         particle.force()
 
-    for i in range(len(particles)):
-        for j in range(i + 1, len(particles)):
-            p1 = particles[i]
-            p2 = particles[j]
-
-            if (p1.r + p2.r) >= p1.p.distance_to(p2.p):
-                p1.collide(p2)
-                print(True)
+    #for i in range(len(particles)):
+    #    for j in range(i + 1, len(particles)):
+    #        p1 = particles[i]
+    #        p2 = particles[j]
+#
+    #        if (p1.r + p2.r) >= p1.p.distance_to(p2.p):
+    #            p1.collide(p2)
+    #            print(True)
 
     for particle in particles:
         particle.velocity()
@@ -120,9 +130,10 @@ def setup(amount, spacing, mass):
 def reset():
     setup(global_amount, global_spacing, global_mass)
 
-setup(60, 100, 1e16)
+setup(30, 100, 1e17)
 
 while running:
+    t += dt
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
