@@ -1,67 +1,157 @@
+import random
+import keyboard
+import threading
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import matplotlib.animation as animation
+from time import sleep
+
+t = 0
+temperatur_data = []
+time_data = []
 
 
-def lotka_volterra(t, y, alpha, beta, delta, gamma):
-    prey, predator = y
-    dydt = [alpha * prey - beta * prey * predator,
-            delta * prey * predator - gamma * predator]
-    return np.array(dydt)
+def temps(res):
+    last = 20
+    randoms = []
+    for i in range(res):
+        # Erzeugt eine periodische Temperaturverteilung
+        rand = 20 * np.cos((np.pi * 2 * 1 / r) * i)
+        randoms.append(rand)
+        last = rand
+    return randoms
 
 
-def rk4_step(f, t, y, dt, *args):
-    k1 = f(t, y, *args)
-    k2 = f(t + dt / 2, y + dt / 2 * k1, *args)
-    k3 = f(t + dt / 2, y + dt / 2 * k2, *args)
-    k4 = f(t + dt, y + dt * k3, *args)
-    return y + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+def getBig(lst):
+    big = 0
+    for i in range(len(lst)):
+        if lst[i] > lst[big]:
+            big = i
+    return lst[big]
 
 
-def simulate(alpha, beta, delta, gamma, y0, t_span, dt):
-    t_values = np.arange(t_span[0], t_span[1], dt)
-    y_values = np.zeros((len(t_values), len(y0)))
-
-    y = y0
-    for i, t in enumerate(t_values):
-        y_values[i] = y
-        y = rk4_step(lotka_volterra, t, y, dt, alpha, beta, delta, gamma)
-
-    return t_values, y_values
+def getSmall(lst):
+    small = 0
+    for i in range(len(lst)):
+        if lst[i] < lst[small]:
+            small = i
+    return lst[small]
 
 
-# Parameterwerte
-alpha = 0.1  # Wachstumsrate der Beute
-beta = 0.02  # Rate, mit der Raubtiere Beute fangen
-delta = 0.01  # Rate, mit der Raubtiere durch Fressen der Beute wachsen
-gamma = 0.1  # Sterberate der Raubtiere
+def setup(colormap, resulution, Temperaturleitfaehigkeit, Zeitintervall):
+    global axs, temp_array, temperatur, norm, x, color, r, a, dt, fig, smallest, largest
+    color = colormap
+    r = resulution
+    a = Temperaturleitfaehigkeit
+    dt = Zeitintervall
 
-# Anfangsbedingungen (Beute, Räuber)
-y0 = [40, 9]
+    randoms = temps(r)
+    temperatur = np.array(randoms)
+    print("Anzahl Temperaturwerte:", len(temperatur))
+    # temp_array wird hier nicht mehr zwingend benötigt,
+    # da wir direkt mit "temperatur" arbeiten.
+    temp_array = [temperatur]
+    x = np.linspace(0, 10, r)
 
-# Simulationsparameter
-t_span = (0, 200)  # Simulationsdauer
-dt = 0.1  # Zeitschritt
-
-t_values, y_values = simulate(alpha, beta, delta, gamma, y0, t_span, dt)
-
-# Erstellung der Animation
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.set_xlim(t_span[0], t_span[1])
-ax.set_ylim(0, max(y_values[:, 0].max(), y_values[:, 1].max()) * 1.1)
-ax.set_xlabel('Zeit')
-ax.set_ylabel('Population')
-ax.set_title('Räuber-Beute-Dynamik mit RK4')
-sc_prey = ax.scatter([], [], color='blue', label='Beute', s=10)
-sc_predator = ax.scatter([], [], color='red', label='Räuber', s=10)
-ax.legend()
+    # Normalisiere die Temperaturwerte für den Scatterplot
+    norm = mcolors.Normalize(vmin=temperatur.min(), vmax=temperatur.max())
+    largest = getBig(temperatur)
+    smallest = getSmall(temperatur)
 
 
-def update(frame):
-    sc_prey.set_offsets(np.c_[t_values[:frame], y_values[:frame, 0]])
-    sc_predator.set_offsets(np.c_[t_values[:frame], y_values[:frame, 1]])
-    return sc_prey, sc_predator
+def update():
+    global temperatur, norm, t
+    temp = temperatur.copy()
+
+    # Berechne den neuen Zustand des Stabes – nur innere Punkte, um Indexprobleme zu vermeiden.
+    for i in range(1, r - 1):
+        temperatur[i] += a * dt * ((temp[i - 1] + temp[i + 1]) / 2 - temp[i])
+
+    # Randbedingungen korrigieren
+    temperatur[0] = temp[0] + a * dt * (temp[1] - temp[0])
+    temperatur[-1] = temp[-1] + a * dt * (temp[-2] - temp[-1])
+
+    t += dt
+    # Optional: Ausgabe des aktuellen Simulationszeitpunkts
+    # print("t =", t)
 
 
-ani = animation.FuncAnimation(fig, update, frames=len(t_values), interval=30, blit=True)
+import time
+
+def simulation_loop():
+    global t
+    start_real_time = time.perf_counter()  # Startzeit in Echtzeit
+
+    while True:
+        real_time_elapsed = time.perf_counter() - start_real_time  # Vergangene Echtzeit
+        sim_time_elapsed = t  # Vergangene Simulationszeit
+
+        if sim_time_elapsed < real_time_elapsed:
+            update()  # Simulation aktualisieren
+        else:
+            time.sleep(0.001)  # Warten, um Echtzeit einzuhalten
+
+
+
+first = True
+
+
+def draw(frame):
+    global first
+    # Zeichne nur den aktuellen Zustand, ohne update() aufzurufen
+    axs[0].clear()
+    axs[1].clear()
+    axs[2].clear()
+
+    # Erster Subplot: Darstellung als "Heatmap"
+    # Damit imshow einen 2D-Array erhält, packen wir "temperatur" in eine Liste.
+    im = axs[0].imshow([temperatur], cmap=color, aspect='auto', norm=norm)
+    axs[0].set_title('Temperaturverlauf')
+    axs[0].set_xlabel('Position entlang des Stabes')
+    axs[0].set_yticks([])  # Y-Achsen-Beschriftungen ausblenden
+    if first:
+        cbar1 = plt.colorbar(im, ax=axs[0])
+        cbar1.set_label('Temperatur (°C)')
+
+    # Zweiter Subplot: Scatterplot
+    sc = axs[1].scatter(x, temperatur, c=temperatur, cmap=color, norm=norm)
+    axs[1].set_title('Temperaturverlauf')
+    axs[1].set_xlabel('Position')
+    axs[1].set_ylabel('Temperatur (°C)')
+    axs[1].set_ylim(smallest, largest)
+    if first:
+        cbar2 = plt.colorbar(sc, ax=axs[1])
+        cbar2.set_label('Temperatur (°C)')
+        first = False
+
+    # Dritter Subplot: Temperatur an einer festen Position (hier Index 100) über die Zeit
+    time_data.append(t)
+    temperatur_data.append(temperatur[0])
+    axs[2].plot(time_data, temperatur_data, color='red')
+    axs[2].set_title("Temperatur vs. Zeit")
+    axs[2].set_xlabel("Zeit")
+    axs[2].set_ylabel("Temperatur (K)")
+
+    plt.tight_layout()
+
+
+def asd():
+    setup('inferno', 200, 0.0261, 0.01)
+
+
+# Hotkeys: Mit "space" wird asd() erneut aufgerufen, mit "ctrl" beendet sich das Programm.
+keyboard.add_hotkey("space", lambda: asd())
+keyboard.add_hotkey("ctrl", lambda: quit(0))
+
+# Initiale Setup-Aufrufe
+asd()
+
+# Starte die Simulation in einem eigenen Daemon-Thread
+sim_thread = threading.Thread(target=simulation_loop, daemon=True)
+sim_thread.start()
+
+# Erstelle die Figuren und starte die Animation
+fig, axs = plt.subplots(3, 1, figsize=(8, 8))
+ani = animation.FuncAnimation(fig, draw, frames=1000, interval=1, blit=False)
 plt.show()
