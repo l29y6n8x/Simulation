@@ -10,10 +10,9 @@ clock = pygame.time.Clock()
 running = True
 
 time_data = []
-force_data = []
 displacement_data = []
 
-dt = 0.01
+dt = 0.1
 sdt = 0.01
 t = 0
 
@@ -35,22 +34,10 @@ y = 0
 
 s = float(s)
 
-def force():
-    global F, k, s
-    F = -s * k
-
-def velocity():
-    global dt, v, F, m
-    if v > 0:
-        v = v + (F - Fg * µ) / m * dt
-    elif v < 0:
-        v = v + (F + Fg * µ) / m * dt
-    else:
-        v = v + F / m * dt
 
 def displacement():
-    global sdt, s, v
-    s = s + v * sdt
+    global s, v
+    s = 200 * math.cos(math.radians(math.sqrt(5) * t))#s = s + v * dt
 
 def graph(frame):
     global t, s
@@ -63,23 +50,15 @@ def graph(frame):
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("white")
 
-    force()
-    velocity()
     displacement()
 
     time_data.append(t)
-    force_data.append(F)
     displacement_data.append(s)
     ax1.clear()
-    ax1.plot(time_data, force_data, color='blue')
-    ax1.set_title("Force vs Time")
+    ax1.plot(time_data, displacement_data, color='blue')
+    ax1.set_title("Displacement vs Time")
     ax1.set_xlabel("")
-    ax1.set_ylabel("Force (F)")
-    ax2.clear()
-    ax2.plot(time_data, displacement_data, color='blue')
-    ax2.set_title("Displacement vs Time")
-    ax2.set_xlabel("")
-    ax2.set_ylabel("Displacement (m)")
+    ax1.set_ylabel("Displacement (m)")
 
 
     dx = 640 - s
@@ -93,9 +72,9 @@ def graph(frame):
 
     return
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
+fig, (ax1) = plt.subplots(1, 1, figsize=(6, 8))
 
-ani = animation.FuncAnimation(fig, graph, frames=1000, interval=dt * 1000, blit=False)
+ani = animation.FuncAnimation(fig, graph, frames=1000, interval=dt , blit=False)
 plt.show()
 
 pygame.quit()
