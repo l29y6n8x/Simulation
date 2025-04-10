@@ -1,12 +1,20 @@
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.animation as animation
 import numpy as np
+import threading
+import time
+import copy
 from perlin_noise import PerlinNoise
 
-temperature, fig, axs, xCord, yCord, old_temp, dt, t = [], 0, [], 0, 0, [], 0, 0
+first = True
+
+# Globale Variablen
+temperature, fig, axs, xCord, yCord, old_temp, dt, t = [], None, None, 0, 0, [], 0, 0
 temperature_data = []
 time_data = []
+running = True
+data_lock = threading.Lock()  # Schutz für gemeinsame Daten
+a = 80.2  # Wärmeleitfähigkeit (wird in setup gesetzt)
+
 
 def setup(size, time_interval, heat_conductivity):
     global temperature, fig, axs, xCord, yCord, dt, a
@@ -15,17 +23,14 @@ def setup(size, time_interval, heat_conductivity):
     noise = PerlinNoise(octaves=2)
     xCord, yCord = size, int(size / 5)
 
-
+    # Erzeugung der Starttemperatur mit Perlin Noise
     temperature = [[10 * noise([i / xCord, j / yCord]) for j in range(xCord)] for i in range(yCord)]
-    fig, axs = plt.subplots(2, 1, figsize=(10, 4), layout='constrained')
+    fig, axs = plt.subplots(2, 1, figsize=(10, 4))
+    fig.tight_layout()
 
-    sum_T = 0
-    for i in range(yCord):
-        for j in range(xCord):
-            sum_T = sum_T + temperature[i][j]
-    start_avrg_temp = sum_T/ (yCord * xCord)
-
+    # Erste Zeichnung (ohne plt.pause, da im Hauptthread gemacht wird)
     draw()
+
 
 def get_next_values(x, y, maxX, maxY):
     add = 0
@@ -58,48 +63,69 @@ def get_next_values(x, y, maxX, maxY):
         add = add + right
         asd += 1
 
-    diff = add/asd - old_temp[y][x]
-
+    diff = add / asd - old_temp[y][x]
     return diff
+
 
 def get_temp_diff(x, y, diff):
     temperature[y][x] = old_temp[y][x] + a * diff * dt
 
+
 def get_avrg_temp():
-    sum_T = 0
-    for i in range(yCord):
-        for j in range(xCord):
-            sum_T = sum_T + temperature[i][j]
-    return sum_T/ (yCord * xCord)
-
-def update(frame):
-    global old_temp
-    old_temp = temperature.copy()
-
-    for i in range(yCord):
-        for j in range(xCord):
-            diff = get_next_values(j, i, len(temperature[0])-1, len(temperature)-1)
-            get_temp_diff(j, i, diff)
-    draw()
+    return sum(sum(row) for row in temperature) / (yCord * xCord)
 
 
-first = True
+def simulation_update():
+    global old_temp, t, running
+    while running:
+        start_time = time.time()
+        with data_lock:
+            # Erstelle eine tiefe Kopie der Temperaturmatrix
+            old_temp = copy.deepcopy(temperature)
+            for i in range(yCord):
+                for j in range(xCord):
+                    diff = get_next_values(j, i, xCord - 1, yCord - 1)
+                    get_temp_diff(j, i, diff)
+            t += dt
+            time_data.append(t)
+            temperature_data.append(get_avrg_temp())
+        # Zeitmessung und Schlafen, um Echtzeitsimulation zu erreichen
+        elapsed_time = time.time() - start_time
+        sleep_time = max(0, dt - elapsed_time)
+        time.sleep(sleep_time)
+
 
 def draw():
-    global first, t
-    t += dt
-    psm = axs[0].pcolormesh(temperature, cmap=cmap, rasterized=True, vmin=-4, vmax=4)
-    if first:
-        cbar = fig.colorbar(psm, ax=axs[0])
-        cbar.set_label('Temperatur (K)')
-        first = False
-    time_data.append(t)
-    temperature_data.append(get_avrg_temp())
-    gra = axs[1].plot(time_data, temperature_data, color='red')
+    global first
+    # Diese Funktion wird ausschließlich im Hauptthread aufgerufen!
+    with data_lock:
+        axs[0].cla()
+        psm = axs[0].pcolormesh(temperature, cmap='inferno', rasterized=True, vmin=-4, vmax=4)
+        axs[0].set_title('Temperaturverteilung')
+
+        if first:
+            cbar = fig.colorbar(psm, ax=axs[0])
+            cbar.set_label('Temperatur (K)')
+            first = False
+
+        axs[1].cla()
+        axs[1].plot(time_data, temperature_data, color='red')
+        axs[1].set_title('Durchschnittstemperatur über Zeit')
+    fig.canvas.draw_idle()  # Aktualisiere den Canvas
 
 
-cmap = 'inferno'
-setup(200, 0.01, 80.2)
+# Setup der Simulation
+setup(200, 0.01, 40.2)
 
-ani = animation.FuncAnimation(fig, update, frames=1000, interval=1, blit=False)
-plt.show()
+# Starte den Simulations-Thread
+sim_thread = threading.Thread(target=simulation_update)
+sim_thread.start()
+
+# GUI-Schleife im Hauptthread: Hier werden die Zeichnungen aktualisiert
+try:
+    while running:
+        draw()
+        plt.pause(0.01)  # Erlaubt dem GUI-Event-Loop, Ereignisse zu verarbeiten
+except KeyboardInterrupt:
+    running = False
+    sim_thread.join()
