@@ -62,7 +62,7 @@ def displacement():
     v2 += -k * s3 / m * dt
     s3 += v2 * dt
 
-def graph(frame):
+def graph(frames):
     global t, s
     t += dt
 
