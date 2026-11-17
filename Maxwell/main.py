@@ -275,7 +275,7 @@ class Potential_Method:
             J = J_vector_field[i][1]
 
             #curl = 0
-            J = 0
+            
 
             dE = self.c**2 * curl - J / epsilon_0
             #print(dB_dt[i])
